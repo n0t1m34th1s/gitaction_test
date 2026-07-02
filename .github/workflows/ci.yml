@@ -1,38 +1,52 @@
-name: C++ CI with Make
+name: Build and Release
 
-# Trigger the workflow on pushes or pull requests to the main branch
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+    branches:
+      - main
 
 jobs:
-  build:
-    # Use the latest Ubuntu runner (comes pre-installed with g++ and make)
+  build_and_release:
+    name: Build C++ and Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to create tags and releases
 
     steps:
-    # Step 1: Check out the repository code onto the runner
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
 
-    # Step 2: Install additional dependencies (Optional)
-    # Uncomment if your project requires external libraries
-    - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential 
+      - name: Setup Build Environment
+        run: sudo apt-get update && sudo apt-get install -y build-essential
 
-    # Step 3: Clean previous builds (Good practice to ensure a fresh environment)
-    - name: Clean build environment
-      run: make clean
-      
-    # Step 4: Compile the application using your Makefile
-    - name: Build application
-      run: make
+      - name: Build C++ Project
+        run: make
 
-    # Step 5: Run tests (Optional)
-    # Uncomment if your Makefile has a test target
-    # - name: Run tests
-    #   run: make test
+      - name: Package Artifact
+        run: tar -czf test-release.tar.gz test  # Replace with your executable name and update tar name
+
+      - name: Generate Timestamp & Tag
+        id: vars
+        run: |
+          DATE=$(date +'%Y%m%d%H%M%S')
+          TAG_NAME="v1.0.${DATE}"
+          echo "tag_name=${TAG_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Create Git Tag
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/${{ steps.vars.outputs.tag_name }}',
+              sha: context.sha
+            })
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag_name }}
+          name: Release ${{ steps.vars.outputs.tag_name }}
+          body: "Automated build and release for commit ${{ github.sha }}."
+          files: test-release.tar.gz
