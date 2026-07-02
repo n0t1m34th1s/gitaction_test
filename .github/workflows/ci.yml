@@ -1,0 +1,38 @@
+name: C++ CI with Make
+
+# Trigger the workflow on pushes or pull requests to the main branch
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    # Use the latest Ubuntu runner (comes pre-installed with g++ and make)
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Check out the repository code onto the runner
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Step 2: Install additional dependencies (Optional)
+    # Uncomment if your project requires external libraries
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential 
+
+    # Step 3: Clean previous builds (Good practice to ensure a fresh environment)
+    - name: Clean build environment
+      run: make clean
+      
+    # Step 4: Compile the application using your Makefile
+    - name: Build application
+      run: make
+
+    # Step 5: Run tests (Optional)
+    # Uncomment if your Makefile has a test target
+    # - name: Run tests
+    #   run: make test
